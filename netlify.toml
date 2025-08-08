@@ -1,0 +1,45 @@
+# netlify.toml
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[functions]
+  # Configure function directory
+  directory = "netlify/functions"
+  # Force include all LibSQL native modules
+  included_files = [
+    "node_modules/@libsql/**/*",
+    "node_modules/@libsql/linux-x64-gnu/**/*",
+    "node_modules/@libsql/darwin-arm64/**/*",
+    "node_modules/@libsql/darwin-x64/**/*",
+    "node_modules/@libsql/linux-arm64-gnu/**/*",
+    "node_modules/@libsql/win32-x64-msvc/**/*"
+  ]
+
+# Configure individual function settings
+[functions.analytics]
+  # Increase timeout for database operations (default is 10 seconds)
+  timeout = 30
+  # Specify Node.js version
+  node_bundler = "esbuild"
+
+[[redirects]]
+  # Optional: Create a cleaner URL for the analytics function
+  from = "/api/analytics"
+  to = "/.netlify/functions/analytics"
+  status = 200
+
+[context.production.environment]
+  # Production environment variables are set in Netlify UI
+  NODE_ENV = "production"
+
+[context.deploy-preview.environment]
+  # Preview deployments
+  NODE_ENV = "development"
+
+# Local development settings
+[dev]
+  framework = "astro"
+  targetPort = 4321
+  # Load environment variables from .env file
+  envFiles = [".env"]

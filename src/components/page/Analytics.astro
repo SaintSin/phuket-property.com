@@ -1,0 +1,62 @@
+---
+// src/components/Analytics.astro
+// // This component should be included in your base layout
+---
+
+<script>
+  // Simple analytics tracking without cookies or localStorage
+  // Generates a session ID that expires when browser closes
+
+  let sessionId = sessionStorage.getItem("analytics_session");
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem("analytics_session", sessionId);
+  }
+
+  // Track page view
+  async function trackPageView() {
+    try {
+      const data = {
+        path: window.location.pathname,
+        referrer: document.referrer || undefined,
+        userAgent: navigator.userAgent,
+        screenWidth: screen.width,
+        screenHeight: screen.height,
+        sessionId: sessionId,
+        siteUrl: window.location.origin,
+      };
+
+      await fetch("/api/analytics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      // console.log("Analytics data sent:", data);
+    } catch (error) {
+      // Fail silently - don't break the user experience
+      console.debug("Analytics tracking failed:", error);
+    }
+  }
+
+  // Track initial page view
+  trackPageView();
+
+  // Track navigation for SPAs (if using View Transitions or client-side routing)
+  let currentPath = window.location.pathname;
+  const observer = new MutationObserver(() => {
+    if (window.location.pathname !== currentPath) {
+      currentPath = window.location.pathname;
+      trackPageView();
+    }
+  });
+
+  // Start observing for navigation changes
+  observer.observe(document, { subtree: true, childList: true });
+
+  // Cleanup on page unload
+  window.addEventListener("beforeunload", () => {
+    observer.disconnect();
+  });
+</script>
