@@ -1,0 +1,103 @@
+---
+import { Image } from "astro:assets";
+
+import Layout from "@layouts/BaseLayout.astro";
+
+import image1 from "@images/panda-01.jpg";
+const meta = {
+  title: "Welcome to Astro",
+  description: "The metadescription",
+  imageOG: "generic-social-1200x630.png",
+  altOG: "Alt text for OG image",
+};
+---
+
+<Layout metaData={meta}>
+  <main class="wrapper flow">
+    <h1>Start</h1>
+    <h2>Check OG:Logo</h2>
+    <p>
+      Lorem, ipsum dolor sit amet consectetur adipisicing elit. Libero aut
+      magnam laborum assumenda, odio, accusamus vero nisi impedit culpa incidunt
+      deserunt, quo dolorem. Soluta accusamus natus, culpa iure nemo iste!
+    </p>
+    <ul>
+      <li>Modern CSS</li>
+      <li>CUBE CSS</li>
+      <li>OG Meta</li>
+      <li>Minimal Starter</li>
+      <li>Experimental Edition</li>
+      <li>Component library</li>
+    </ul>
+    <ol>
+      <li>Minimal Starter<br /></li>
+      <li>Experimental Edition</li>
+      <li>Components Edition</li>
+    </ol>
+    <h2>Image</h2>
+    <Image src={image1} alt="alt-text" quality={50} />
+
+    <section class="grid" data-layout="50-50">
+      <div class="">
+        <h2>Grid 50-50</h2>
+        <p>Number of columns is controlled by using attribute data-layout</p>
+      </div>
+      <div class="">
+        <h2>Grid</h2>
+        <p>
+          Lorem ipsum dolor sit amet consectetur adipisicing elit. Tenetur fuga
+          libero labore impedit nam officia facere omnis ullam iure unde.
+          Veritatis quidem error similique eum modi dicta eaque blanditiis
+          voluptatem.
+        </p>
+      </div>
+    </section>
+    <section class="flow">
+      <h2>Grid Thirds</h2>
+      <div class="grid" data-layout="thirds">
+        <Image src={image1} alt="-" quality={50} />
+        <Image src={image1} alt="-" quality={50} />
+        <Image src={image1} alt="alt-text" quality={50} />
+      </div>
+      <div class="grid" data-layout="thirds">
+        <Image src={image1} alt="alt-text" quality={50} class="span-2" />
+        <Image src={image1} alt="alt-text" quality={50} />
+      </div>
+    </section>
+    <section class="flow">
+      <h2>Responsive Images</h2>
+      <div class="flow resize-h">
+        <p>Fixed with nominated width</p>
+        <Image
+          src={image1}
+          alt="alt-text"
+          quality={50}
+          width={600}
+          layout="fixed"
+        />
+        <p>Constrained</p>
+        <Image
+          src={image1}
+          alt="alt-text"
+          quality={50}
+          width={700}
+          height={700}
+          layout="constrained"
+        />
+        <p>Full width</p>
+        <Image src={image1} alt="alt-text" quality={50} layout="full-width" />
+      </div>
+    </section>
+  </main>
+  <section class="content-grid">
+    <p>Lorem</p>
+  </section>
+</Layout>
+<style>
+  .resize-h {
+    resize: horizontal;
+    overflow: auto;
+    border: 1px solid;
+    padding: 1rem;
+  }
+</style>

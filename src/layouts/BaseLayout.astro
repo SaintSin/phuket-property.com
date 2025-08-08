@@ -1,0 +1,18 @@
+---
+import Basehead from "@components/page/Basehead.astro";
+import Header from "@components/page/Header.astro";
+import Footer from "@components/page/Footer.astro";
+const { metaData } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <Basehead metaData={metaData} />
+  <body>
+    <Header />
+    <div class="content">
+      <slot />
+    </div>
+    <Footer />
+  </body>
+</html>

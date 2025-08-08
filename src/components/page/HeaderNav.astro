@@ -1,0 +1,35 @@
+---
+// Not using a list, as Google sites don't seem to use it. And being sheep we follow Google
+
+const { pathname } = Astro.url;
+const links = [
+  { label: "Home", href: "/" },
+  { label: "About", href: "/about/" },
+  { label: "Three", href: "/three/" },
+];
+---
+
+<div class="nav-links">
+  {
+    links.map((link) => (
+      <a class={pathname == link.href ? "active--exact" : ""} href={link.href}>
+        {link.label}
+      </a>
+    ))
+  }
+</div>
+
+<style>
+  .nav-links {
+    a {
+      text-decoration: none;
+      padding-inline-end: var(--gap);
+    }
+    .active--exact {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+  }
+</style>

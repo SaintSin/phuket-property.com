@@ -1,0 +1,19 @@
+---
+import { Image } from "astro:assets";
+
+import Layout from "@layouts/BaseLayout.astro";
+
+import image1 from "@images/panda-01.jpg";
+const meta = {
+  title: "Welcome to Astro",
+  description: "The metadescription",
+  imageOG: "generic-social-1200x630.png",
+  altOG: "Alt text for OG image",
+};
+---
+
+<Layout metaData={meta}>
+  <main class="wrapper">
+    <h1>About</h1>
+  </main>
+</Layout>
