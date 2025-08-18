@@ -74,7 +74,6 @@ to change how empty grid tracks are handled */
 
 .content-grid {
   display: grid;
-  grid-area: content;
   display: grid;
   grid-template-columns:
     [full-start] var(--start) [feature-start] var(--feature) [popout-start] var(
@@ -85,4 +84,5 @@ to change how empty grid tracks are handled */
       --end
     )
     [full-end];
+  grid-area: content;
 }

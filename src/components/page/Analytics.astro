@@ -1,62 +1,117 @@
 ---
-// src/components/Analytics.astro
-// // This component should be included in your base layout
+// src/componnents/Analytics.astro
+
+/* Client script for Core Web Vitals + session tracking */
 ---
 
 <script>
-  // Simple analytics tracking without cookies or localStorage
-  // Generates a session ID that expires when browser closes
-
-  let sessionId = sessionStorage.getItem("analytics_session");
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-    sessionStorage.setItem("analytics_session", sessionId);
-  }
-
-  // Track page view
-  async function trackPageView() {
-    try {
-      const data = {
-        path: window.location.pathname,
-        referrer: document.referrer || undefined,
-        userAgent: navigator.userAgent,
-        screenWidth: screen.width,
-        screenHeight: screen.height,
-        sessionId: sessionId,
-        siteUrl: window.location.origin,
-      };
-
-      await fetch("/api/analytics", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+  (function () {
+    function generateUUID() {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
       });
-      // console.log("Analytics data sent:", data);
-    } catch (error) {
-      // Fail silently - don't break the user experience
-      console.debug("Analytics tracking failed:", error);
     }
-  }
 
-  // Track initial page view
-  trackPageView();
+    const siteId = "Astro Lightbox"; // Change per site
 
-  // Track navigation for SPAs (if using View Transitions or client-side routing)
-  let currentPath = window.location.pathname;
-  const observer = new MutationObserver(() => {
-    if (window.location.pathname !== currentPath) {
-      currentPath = window.location.pathname;
-      trackPageView();
+    let sessionId = localStorage.getItem("session_id");
+    if (!sessionId) {
+      sessionId = generateUUID();
+      localStorage.setItem("session_id", sessionId);
+      localStorage.setItem("session_start", Date.now().toString());
+      localStorage.setItem("pageviews_in_session", "0");
     }
-  });
+    let pageviews =
+      parseInt(localStorage.getItem("pageviews_in_session") || "0", 10) + 1;
+    localStorage.setItem("pageviews_in_session", pageviews.toString());
 
-  // Start observing for navigation changes
-  observer.observe(document, { subtree: true, childList: true });
+    // Metrics store
+    let metrics = {
+      session_id: sessionId,
+      site_id: siteId,
+      url: location.href,
+      path: location.pathname,
+      referrer: document.referrer || null,
+      screen_width: window.screen.width,
+      screen_height: window.screen.height,
+      user_agent: navigator.userAgent,
+      lcp: null as number | null,
+      cls: 0,
+      fid: null as number | null,
+      fcp: null as number | null,
+      ttfb: null as number | null,
+      inp: null as number | null,
+      duration_ms: 0,
+      bounce: pageviews === 1 ? 1 : 0,
+      pageviews_in_session: pageviews,
+    };
 
-  // Cleanup on page unload
-  window.addEventListener("beforeunload", () => {
-    observer.disconnect();
-  });
+    const poLCP = new PerformanceObserver((list) => {
+      const lastEntry = list.getEntries().pop() as
+        | PerformanceNavigationTiming
+        | PerformancePaintTiming
+        | any;
+      if (lastEntry) {
+        metrics.lcp =
+          lastEntry.renderTime || lastEntry.loadTime || lastEntry.startTime;
+      }
+    });
+    poLCP.observe({ type: "largest-contentful-paint", buffered: true });
+
+    const poFID = new PerformanceObserver((list) => {
+      const firstInput = list.getEntries()[0] as any;
+      if (firstInput && firstInput.processingStart) {
+        metrics.fid = firstInput.processingStart - firstInput.startTime;
+      }
+    });
+    poFID.observe({ type: "first-input", buffered: true });
+
+    const poCLS = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        const clsEntry = entry as any;
+        if (!clsEntry.hadRecentInput && clsEntry.value !== undefined) {
+          metrics.cls += clsEntry.value;
+        }
+      }
+    });
+    poCLS.observe({ type: "layout-shift", buffered: true });
+
+    const poPaint = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        if (entry.name === "first-contentful-paint") {
+          metrics.fcp = entry.startTime;
+        }
+      }
+    });
+    poPaint.observe({ type: "paint", buffered: true });
+
+    const navEntry = performance.getEntriesByType(
+      "navigation",
+    )[0] as PerformanceNavigationTiming;
+    if (navEntry && navEntry.responseStart) {
+      metrics.ttfb = navEntry.responseStart;
+    }
+
+    // Duration tracking
+    const start = Date.now();
+    window.addEventListener("beforeunload", () => {
+      metrics.duration_ms = Date.now() - start;
+      sendMetrics();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        metrics.duration_ms = Date.now() - start;
+        sendMetrics();
+      }
+    });
+
+    function sendMetrics() {
+      navigator.sendBeacon(
+        "/.netlify/functions/pandalytics",
+        JSON.stringify(metrics),
+      );
+    }
+  })();
 </script>

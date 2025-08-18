@@ -1,19 +1,19 @@
 body {
-  background: var(--stone-2);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  font-size: var(--font-size-2);
-  font-family: var(--font-system-ui);
-  line-height: 1.5;
+  background: var(--stone-2);
   min-height: 100dvh;
+  font-size: var(--font-size-2);
+  line-height: 1.5;
+  font-family: var(--font-system-ui);
 }
 
 .content {
   height: 100%;
 }
 .wrapper {
-  max-width: var(--max-content-width);
   margin: auto;
+  max-width: var(--max-content-width);
 }
 
 p {
