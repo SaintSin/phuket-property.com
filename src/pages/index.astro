@@ -1,9 +1,8 @@
 ---
-import { Image } from "astro:assets";
+import { Image } from "@unpic/astro";
 
 import Layout from "@layouts/BaseLayout.astro";
 
-import image1 from "@images/panda-01.jpg";
 const meta = {
   title: "Phuket Property: Real Estate For Sale",
   description: "Website coming soon",
@@ -13,8 +12,55 @@ const meta = {
 ---
 
 <Layout metaData={meta}>
-  <main class="wrapper flow">
-    <h1>Phuket Property</h1>
-    <p>A new website is coming soon.</p>
-  </main>
+  <div class="placeholder">
+    <Image
+      src="https://ik.imagekit.io/phuket/beaches/Naithon-Beach-Phuket.jpg?updatedAt=1755525680077"
+      layout="constrained"
+      alt="Naithon Beach phuket"
+      class="hero"
+      objectFit="cover"
+      width={1200}
+      height={800}
+    />
+    <div>
+      <h1>Phuket Property</h1>
+      <p>A brand new website is coming soon.</p>
+    </div>
+  </div>
 </Layout>
+
+<style>
+  .placeholder {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+    place-items: center;
+    width: 100%;
+    height: 100vh;
+
+    div {
+      grid-row: 1 / -1;
+      grid-column: 1 / -1;
+      z-index: 1;
+      background: oklch(0.88 0.0345 117 / 62.1%);
+      padding: var(--size-4);
+      max-width: fit-content;
+      height: fit-content;
+      text-align: center;
+      h1 {
+        padding: 1rem;
+        font-size: 6rem;
+      }
+      p {
+        font-size: 2rem;
+      }
+    }
+  }
+
+  .hero {
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+    min-width: 100%;
+    min-height: 100%;
+  }
+</style>

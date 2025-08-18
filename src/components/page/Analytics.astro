@@ -1,5 +1,5 @@
 ---
-// src/componnents/Analytics.astro
+// src/components/Analytics.astro
 
 /* Client script for Core Web Vitals + session tracking */
 ---
@@ -23,9 +23,23 @@
       localStorage.setItem("session_start", Date.now().toString());
       localStorage.setItem("pageviews_in_session", "0");
     }
-    let pageviews =
-      parseInt(localStorage.getItem("pageviews_in_session") || "0", 10) + 1;
-    localStorage.setItem("pageviews_in_session", pageviews.toString());
+
+    // Only increment pageviews if this is a new page load, not a script re-run
+    const currentPageKey = `visited_${sessionId}_${location.pathname}`;
+    const hasVisitedThisPage = localStorage.getItem(currentPageKey);
+
+    let pageviews = parseInt(
+      localStorage.getItem("pageviews_in_session") || "0",
+      10,
+    );
+    let isNewPageVisit = false;
+
+    if (!hasVisitedThisPage) {
+      pageviews += 1;
+      isNewPageVisit = true;
+      localStorage.setItem("pageviews_in_session", pageviews.toString());
+      localStorage.setItem(currentPageKey, "true");
+    }
 
     // Metrics store
     let metrics = {
@@ -47,6 +61,14 @@
       bounce: pageviews === 1 ? 1 : 0,
       pageviews_in_session: pageviews,
     };
+
+    // Only send metrics if this is a new page visit
+    if (!isNewPageVisit) {
+      console.log(
+        "🚫 Page already visited in this session, not sending metrics",
+      );
+      return;
+    }
 
     const poLCP = new PerformanceObserver((list) => {
       const lastEntry = list.getEntries().pop() as
@@ -96,22 +118,62 @@
 
     // Duration tracking
     const start = Date.now();
+    const pageLoadKey = `metrics_sent_${sessionId}_${location.pathname}_${start}`;
+    let metricsSent = localStorage.getItem(pageLoadKey) === "true";
+
+    console.log("🔧 Analytics script initialized for session:", sessionId);
+
     window.addEventListener("beforeunload", () => {
-      metrics.duration_ms = Date.now() - start;
-      sendMetrics();
+      console.log("🚪 beforeunload event, metricsSent:", metricsSent);
+      if (!metricsSent) {
+        metrics.duration_ms = Date.now() - start;
+        sendMetrics();
+      }
     });
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
+      console.log(
+        "👁️ visibilitychange event, state:",
+        document.visibilityState,
+        "metricsSent:",
+        metricsSent,
+      );
+      if (document.visibilityState === "hidden" && !metricsSent) {
         metrics.duration_ms = Date.now() - start;
         sendMetrics();
       }
     });
 
     function sendMetrics() {
-      navigator.sendBeacon(
-        "/.netlify/functions/pandalytics",
-        JSON.stringify(metrics),
-      );
+      if (metricsSent) {
+        console.log("⚠️ Metrics already sent, skipping");
+        return;
+      }
+      metricsSent = true;
+      localStorage.setItem(pageLoadKey, "true");
+      console.log("📤 Sending metrics:", metrics);
+
+      const blob = new Blob([JSON.stringify(metrics)], {
+        type: "application/json",
+      });
+
+      if (!navigator.sendBeacon("/.netlify/functions/pandalytics", blob)) {
+        fetch("/.netlify/functions/pandalytics", {
+          method: "POST",
+          body: JSON.stringify(metrics),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          keepalive: true,
+        }).catch(() => {});
+      }
+    }
+
+    // Clean up old metrics_sent keys (keep only last 10 entries)
+    const allKeys = Object.keys(localStorage);
+    const metricKeys = allKeys.filter((key) => key.startsWith("metrics_sent_"));
+    if (metricKeys.length > 10) {
+      metricKeys.sort();
+      metricKeys.slice(0, -10).forEach((key) => localStorage.removeItem(key));
     }
   })();
 </script>
