@@ -1,5 +1,5 @@
 // netlify/functions/pandalytics.ts
-// Last updated: 2024-08-18 11:35
+// Last updated: 2024-08-19 06:35
 
 import type { Handler, HandlerEvent } from "@netlify/functions";
 
@@ -158,7 +158,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
     path || null,
     referrer || null,
     timestamp,
-    duration_ms || 0,
+    duration_ms ? Math.round(duration_ms) : 0,
     lcp || null,
     cls || null,
     fid || null,

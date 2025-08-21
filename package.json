@@ -13,7 +13,7 @@
     "@astrojs/netlify": "^6.5.7",
     "@astrojs/sitemap": "^3.5.0",
     "@iconify-json/ri": "^1.2.5",
-    "@netlify/functions": "^4.2.1",
+    "@netlify/functions": "^4.2.2",
     "@unpic/astro": "^1.0.1",
     "astro": "^5.13.2",
     "astro-capo": "^0.0.1",

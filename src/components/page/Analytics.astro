@@ -1,11 +1,22 @@
 ---
 // src/components/Analytics.astro
+// Clean analytics implementation
+// upated 19-08-25 15:22
 
-/* Client script for Core Web Vitals + session tracking */
+const siteId = Astro.site ? new URL(Astro.site).hostname : "localhost";
 ---
 
-<script>
+<script define:vars={{ siteId }} is:inline>
   (function () {
+    // Skip in development
+    if (
+      location.hostname === "localhost" ||
+      location.hostname === "127.0.0.1"
+    ) {
+      console.log("🚧 Analytics disabled in development");
+      return;
+    }
+
     function generateUUID() {
       return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
         const r = (Math.random() * 16) | 0;
@@ -14,166 +25,121 @@
       });
     }
 
-    const siteId = "Phuket Property"; // Change per site
-
-    let sessionId = localStorage.getItem("session_id");
-    if (!sessionId) {
-      sessionId = generateUUID();
-      localStorage.setItem("session_id", sessionId);
-      localStorage.setItem("session_start", Date.now().toString());
-      localStorage.setItem("pageviews_in_session", "0");
-    }
-
-    // Only increment pageviews if this is a new page load, not a script re-run
-    const currentPageKey = `visited_${sessionId}_${location.pathname}`;
-    const hasVisitedThisPage = localStorage.getItem(currentPageKey);
-
-    let pageviews = parseInt(
-      localStorage.getItem("pageviews_in_session") || "0",
-      10,
-    );
-    let isNewPageVisit = false;
-
-    if (!hasVisitedThisPage) {
-      pageviews += 1;
-      isNewPageVisit = true;
-      localStorage.setItem("pageviews_in_session", pageviews.toString());
-      localStorage.setItem(currentPageKey, "true");
-    }
-
-    // Metrics store
-    let metrics = {
-      session_id: sessionId,
-      site_id: siteId,
-      url: location.href,
-      path: location.pathname,
-      referrer: document.referrer || null,
-      screen_width: window.screen.width,
-      screen_height: window.screen.height,
-      user_agent: navigator.userAgent,
-      lcp: null as number | null,
-      cls: 0,
-      fid: null as number | null,
-      fcp: null as number | null,
-      ttfb: null as number | null,
-      inp: null as number | null,
-      duration_ms: 0,
-      bounce: pageviews === 1 ? 1 : 0,
-      pageviews_in_session: pageviews,
-    };
-
-    // Only send metrics if this is a new page visit
-    if (!isNewPageVisit) {
-      console.log(
-        "🚫 Page already visited in this session, not sending metrics",
-      );
-      return;
-    }
-
-    const poLCP = new PerformanceObserver((list) => {
-      const lastEntry = list.getEntries().pop() as
-        | PerformanceNavigationTiming
-        | PerformancePaintTiming
-        | any;
-      if (lastEntry) {
-        metrics.lcp =
-          lastEntry.renderTime || lastEntry.loadTime || lastEntry.startTime;
-      }
-    });
-    poLCP.observe({ type: "largest-contentful-paint", buffered: true });
-
-    const poFID = new PerformanceObserver((list) => {
-      const firstInput = list.getEntries()[0] as any;
-      if (firstInput && firstInput.processingStart) {
-        metrics.fid = firstInput.processingStart - firstInput.startTime;
-      }
-    });
-    poFID.observe({ type: "first-input", buffered: true });
-
-    const poCLS = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const clsEntry = entry as any;
-        if (!clsEntry.hadRecentInput && clsEntry.value !== undefined) {
-          metrics.cls += clsEntry.value;
-        }
-      }
-    });
-    poCLS.observe({ type: "layout-shift", buffered: true });
-
-    const poPaint = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if (entry.name === "first-contentful-paint") {
-          metrics.fcp = entry.startTime;
-        }
-      }
-    });
-    poPaint.observe({ type: "paint", buffered: true });
-
-    const navEntry = performance.getEntriesByType(
-      "navigation",
-    )[0] as PerformanceNavigationTiming;
-    if (navEntry && navEntry.responseStart) {
-      metrics.ttfb = navEntry.responseStart;
-    }
-
-    // Duration tracking
-    const start = Date.now();
-    const pageLoadKey = `metrics_sent_${sessionId}_${location.pathname}_${start}`;
-    let metricsSent = localStorage.getItem(pageLoadKey) === "true";
-
-    console.log("🔧 Analytics script initialized for session:", sessionId);
-
-    window.addEventListener("beforeunload", () => {
-      console.log("🚪 beforeunload event, metricsSent:", metricsSent);
-      if (!metricsSent) {
-        metrics.duration_ms = Date.now() - start;
-        sendMetrics();
-      }
-    });
-    document.addEventListener("visibilitychange", () => {
-      console.log(
-        "👁️ visibilitychange event, state:",
-        document.visibilityState,
-        "metricsSent:",
-        metricsSent,
-      );
-      if (document.visibilityState === "hidden" && !metricsSent) {
-        metrics.duration_ms = Date.now() - start;
-        sendMetrics();
-      }
-    });
-
-    function sendMetrics() {
-      if (metricsSent) {
-        console.log("⚠️ Metrics already sent, skipping");
+    function initializeAnalytics() {
+      // Prevent duplicate sends within 2 seconds
+      const now = Date.now();
+      const lastSent = sessionStorage.getItem("last_analytics_send");
+      if (lastSent && now - parseInt(lastSent) < 2000) {
         return;
       }
-      metricsSent = true;
-      localStorage.setItem(pageLoadKey, "true");
-      console.log("📤 Sending metrics:", metrics);
+      sessionStorage.setItem("last_analytics_send", now.toString());
 
-      const blob = new Blob([JSON.stringify(metrics)], {
-        type: "application/json",
-      });
-
-      if (!navigator.sendBeacon("/.netlify/functions/pandalytics", blob)) {
-        fetch("/.netlify/functions/pandalytics", {
-          method: "POST",
-          body: JSON.stringify(metrics),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          keepalive: true,
-        }).catch(() => {});
+      // Get or create session
+      let sessionId = sessionStorage.getItem("session_id");
+      if (!sessionId) {
+        sessionId = generateUUID();
+        sessionStorage.setItem("session_id", sessionId);
+        sessionStorage.setItem("session_start", Date.now().toString());
       }
+
+      // Track page visits
+      const pageKey = `page_${location.pathname}`;
+      const isFirstVisit = !sessionStorage.getItem(pageKey);
+      if (isFirstVisit) {
+        sessionStorage.setItem(pageKey, Date.now().toString());
+      }
+
+      // Basic metrics
+      const startTime = Date.now();
+      const metrics = {
+        session_id: sessionId,
+        site_id: siteId,
+        url: location.href,
+        path: location.pathname,
+        referrer: document.referrer || null,
+        screen_width: window.screen.width,
+        screen_height: window.screen.height,
+        user_agent: navigator.userAgent,
+        timestamp: startTime,
+        is_first_visit: isFirstVisit,
+        // CWV placeholders
+        lcp: null,
+        fid: null,
+        cls: 0,
+        fcp: null,
+        ttfb: null,
+        duration_ms: 0,
+      };
+
+      // Core Web Vitals tracking
+      // LCP - Largest Contentful Paint
+      new PerformanceObserver((list) => {
+        const lastEntry = list.getEntries().pop();
+        if (lastEntry) {
+          metrics.lcp =
+            lastEntry.renderTime || lastEntry.loadTime || lastEntry.startTime;
+        }
+      }).observe({ type: "largest-contentful-paint", buffered: true });
+
+      // FID - First Input Delay
+      new PerformanceObserver((list) => {
+        const firstInput = list.getEntries()[0];
+        if (firstInput && firstInput.processingStart) {
+          metrics.fid = firstInput.processingStart - firstInput.startTime;
+        }
+      }).observe({ type: "first-input", buffered: true });
+
+      // CLS - Cumulative Layout Shift
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput && entry.value !== undefined) {
+            metrics.cls += entry.value;
+          }
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+
+      // FCP - First Contentful Paint
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name === "first-contentful-paint") {
+            metrics.fcp = entry.startTime;
+          }
+        }
+      }).observe({ type: "paint", buffered: true });
+
+      // TTFB - Time to First Byte
+      const navEntry = performance.getEntriesByType("navigation")[0];
+      if (navEntry && navEntry.responseStart) {
+        metrics.ttfb = navEntry.responseStart;
+      }
+
+      console.log("📊 Analytics:", metrics);
+
+      // Send metrics after a delay to capture CWV
+      setTimeout(() => {
+        metrics.duration_ms = Date.now() - startTime;
+
+        const blob = new Blob([JSON.stringify(metrics)], {
+          type: "application/json",
+        });
+
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/.netlify/functions/pandalytics", blob);
+        } else {
+          fetch("/.netlify/functions/pandalytics", {
+            method: "POST",
+            body: JSON.stringify(metrics),
+            headers: { "Content-Type": "application/json" },
+            keepalive: true,
+          }).catch(() => {});
+        }
+      }, 1000);
     }
 
-    // Clean up old metrics_sent keys (keep only last 10 entries)
-    const allKeys = Object.keys(localStorage);
-    const metricKeys = allKeys.filter((key) => key.startsWith("metrics_sent_"));
-    if (metricKeys.length > 10) {
-      metricKeys.sort();
-      metricKeys.slice(0, -10).forEach((key) => localStorage.removeItem(key));
-    }
+    // Initialize on page load
+    initializeAnalytics();
+
+    // Handle Astro view transitions
+    document.addEventListener("astro:page-load", initializeAnalytics);
   })();
 </script>
