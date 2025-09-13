@@ -1,5 +1,5 @@
 // netlify/functions/pandalytics.ts
-// Last updated: 2024-08-19 06:35
+// Last updated: 2025-09-06 15:50 - Fixed browser detection to use client-sent value
 
 import type { Handler, HandlerEvent } from "@netlify/functions";
 
@@ -13,15 +13,14 @@ interface MetricData {
   screen_width?: number;
   screen_height?: number;
   user_agent?: string;
+  browser?: string; // Client-parsed browser info
   lcp?: number;
   cls?: number;
   fid?: number;
   fcp?: number;
   ttfb?: number;
   inp?: number;
-  duration_ms?: number;
   bounce?: boolean;
-  pageviews_in_session?: number;
 }
 
 export const handler: Handler = async (event: HandlerEvent) => {
@@ -64,13 +63,13 @@ export const handler: Handler = async (event: HandlerEvent) => {
     screen_width,
     screen_height,
     user_agent,
+    browser: clientBrowser,
     lcp,
     cls,
     fid,
     fcp,
     ttfb,
     inp,
-    duration_ms,
   } = bodyData;
 
   // Extract country from Netlify headers if not provided in data
@@ -115,7 +114,8 @@ export const handler: Handler = async (event: HandlerEvent) => {
     }
   };
 
-  const browser = parseBrowser(user_agent);
+  // Use client-sent browser if available, fallback to server-side parsing
+  const browser = clientBrowser || parseBrowser(user_agent);
   const timestamp = Date.now();
 
   // SQL for upsert session
@@ -136,9 +136,9 @@ export const handler: Handler = async (event: HandlerEvent) => {
   // SQL for pageview
   const pageviewSql = `
     INSERT INTO pageviews (
-      session_id, url, path, referrer, timestamp, duration_ms,
+      session_id, url, path, referrer, timestamp,
       lcp, cls, fid, fcp, ttfb, inp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const sessionParams = [
@@ -158,7 +158,6 @@ export const handler: Handler = async (event: HandlerEvent) => {
     path || null,
     referrer || null,
     timestamp,
-    duration_ms ? Math.round(duration_ms) : 0,
     lcp || null,
     cls || null,
     fid || null,
@@ -168,7 +167,10 @@ export const handler: Handler = async (event: HandlerEvent) => {
   ];
 
   // Check required environment variables
-  if (!process.env.TURSO_REST_ENDPOINT || !process.env.TURSO_API_TOKEN) {
+  if (
+    !process.env.PANDALYTICS_TURSO_REST_ENDPOINT ||
+    !process.env.PANDALYTICS_TURSO_API_TOKEN
+  ) {
     console.log("❌ Missing required environment variables");
     return {
       statusCode: 500,
@@ -192,10 +194,10 @@ export const handler: Handler = async (event: HandlerEvent) => {
       ],
     };
 
-    const response = await fetch(process.env.TURSO_REST_ENDPOINT, {
+    const response = await fetch(process.env.PANDALYTICS_TURSO_REST_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.TURSO_API_TOKEN}`,
+        Authorization: `Bearer ${process.env.PANDALYTICS_TURSO_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),

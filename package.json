@@ -10,16 +10,16 @@
     "prettier": "exec prettier . --write"
   },
   "dependencies": {
-    "@astrojs/netlify": "^6.5.7",
-    "@astrojs/sitemap": "^3.5.0",
+    "@astrojs/netlify": "^6.5.10",
+    "@astrojs/sitemap": "^3.5.1",
     "@iconify-json/ri": "^1.2.5",
-    "@netlify/functions": "^4.2.2",
+    "@netlify/functions": "^4.2.5",
     "@unpic/astro": "^1.0.1",
-    "astro": "^5.13.2",
+    "astro": "^5.13.7",
     "astro-capo": "^0.0.1",
     "astro-icon": "^1.1.5",
     "open-props": "^1.7.16",
-    "sass": "^1.90.0",
+    "sass": "^1.92.1",
     "sharp": "^0.34.3"
   },
   "devDependencies": {
